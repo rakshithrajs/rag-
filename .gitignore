@@ -6,6 +6,7 @@ __pycache__/
 .venv/
 venv/
 env/
+.rag~
 
 # Django
 db.sqlite3
@@ -15,11 +16,15 @@ local_settings.py
 # Environment
 .env
 
+# Media / uploads
+media/
+
+# Static files collected for production
+staticfiles/
+
 # Generated data
 faiss_index/
 demofile*.txt
-
-.claude/
 
 # IDE
 .idea/

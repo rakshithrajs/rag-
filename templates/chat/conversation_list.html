@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Conversations{% endblock %}
+
+{% block content %}
+<h2>Conversations</h2>
+<a href="{% url 'chat:new_conversation' %}">Start a new conversation</a>
+
+{% if conversations %}
+<ul>
+    {% for conversation in conversations %}
+    <li>
+        <a href="{% url 'chat:conversation_detail' conversation.pk %}">
+            {{ conversation }}
+        </a>
+        <small>{{ conversation.updated_at }}</small>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No conversations yet.</p>
+{% endif %}
+{% endblock %}

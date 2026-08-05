@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}{{ conversation }}{% endblock %}
+
+{% block content %}
+<h2>{{ conversation }}</h2>
+<a href="{% url 'chat:conversation_list' %}">Back to conversations</a>
+
+<section class="messages">
+    {% for message in conversation.messages.all %}
+    <div class="message {{ message.role }}">
+        <strong>{{ message.role|title }}</strong>
+        <p>{{ message.content }}</p>
+        {% if message.source_chunks %}
+        <details>
+            <summary>Sources</summary>
+            {% for chunk in message.source_chunks %}
+            <article class="source-chunk">
+                <p><strong>{{ chunk.source }}</strong>{% if chunk.page %} — Page {{ chunk.page }}{% endif %}</p>
+                <blockquote>{{ chunk.text }}</blockquote>
+            </article>
+            {% endfor %}
+        </details>
+        {% endif %}
+    </div>
+    {% endfor %}
+</section>
+
+<form method="post" action="{% url 'chat:ask' conversation.pk %}">
+    {% csrf_token %}
+    <label for="question">Your question</label>
+    <textarea id="question" name="question" rows="3" required></textarea>
+    <button type="submit">Ask</button>
+</form>
+{% endblock %}
