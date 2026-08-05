@@ -30,6 +30,20 @@ staticfiles/
 faiss_index/
 demofile*.txt
 
+# Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# macOS
+.DS_Store
+
 # IDE
 .idea/
 .vscode/

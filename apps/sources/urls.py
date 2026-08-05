@@ -1,13 +1,15 @@
-"""URL configuration for the sources app."""
+"""URL configuration for the sources API."""
 
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
 from apps.sources import views
 
 
-app_name = "sources"
+router = DefaultRouter()
+router.register(r"sources", views.KnowledgeSourceViewSet, basename="source")
 
 urlpatterns = [
-    path("", views.source_list, name="source_list"),
-    path("add/", views.add_source, name="add_source"),
+    path("", include(router.urls)),
+    path("sources/<int:pk>/reprocess/", views.reprocess_source, name="source-reprocess"),
 ]

@@ -1,12 +1,14 @@
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import include, path
 
+api_v1_patterns = [
+    path("sources/", include("apps.sources.urls")),
+    path("chat/", include("apps.chat.urls")),
+]
+
 urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("sources/", include("apps.sources.urls", namespace="sources")),
-    path("", include("apps.chat.urls", namespace="chat")),
+    path("api/v1/", include(api_v1_patterns)),
 ]
 
 if settings.DEBUG:
