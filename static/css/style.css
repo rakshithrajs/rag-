@@ -32,7 +32,7 @@ form {
     gap: 0.5rem;
 }
 
-textarea, input[type="text"] {
+textarea, input[type="text"], select {
     width: 100%;
     padding: 0.5rem;
     border: 1px solid #ccc;
