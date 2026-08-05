@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}URL Summarizer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>URL Summarizer</h1>
+    <p class="subtitle">Paste a link, ask a question, and get an AI-powered answer in your chosen language.</p>
+
+    {% if error %}
+    <div class="error-banner">{{ error }}</div>
+    {% endif %}
+
+    <form action="{% url 'summary' %}" method="POST" data-loading>
+        {% csrf_token %}
+
+        <div class="field">
+            <label for="url">URL</label>
+            <input
+                type="text"
+                id="url"
+                name="url"
+                placeholder="https://example.com/article"
+                value="{{ url|default:'' }}"
+                required
+            />
+        </div>
+
+        <div class="field">
+            <label for="question">Question</label>
+            <input
+                type="text"
+                id="question"
+                name="question"
+                placeholder="What is this page about?"
+                value="{{ question|default:'' }}"
+                required
+            />
+        </div>
+
+        <div class="field">
+            <label for="language">Output language</label>
+            <select id="language" name="language" required>
+                {% for code, name in languages.items %}
+                <option value="{{ code }}" {% if language == code %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn">Summarize</button>
+    </form>
+
+    <p style="margin-top: 24px; font-size: 0.9rem; color: var(--muted);">
+        <a href="{% url 'test_ollama' %}" style="color: var(--accent); text-decoration: none;">Test Ollama connection →</a>
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Ollama Connection Test{% endblock %}
+
+{% block content %}
+<style>
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    .status-ok {
+        background: rgba(46, 213, 115, 0.15);
+        color: #2ed573;
+    }
+    .status-bad {
+        background: rgba(255, 46, 99, 0.15);
+        color: #ff5e7d;
+    }
+    .model-list {
+        list-style: none;
+        padding: 0;
+        margin: 10px 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .model-list li {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 0.85rem;
+        color: var(--muted);
+    }
+    .model-list li.target {
+        border-color: var(--accent);
+        color: var(--text);
+        background: rgba(255, 46, 99, 0.1);
+    }
+    .diagnostic-card {
+        margin-bottom: 20px;
+    }
+    .diagnostic-card h2 {
+        font-size: 1.15rem;
+        margin-bottom: 8px;
+    }
+    .hint {
+        background: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        color: #ffd54f;
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        font-size: 0.95rem;
+    }
+</style>
+
+<div class="container">
+    <h1>Ollama Connection Test</h1>
+    <p class="subtitle">Verify that both the chat host and the embedding host are reachable.</p>
+
+    {% if any_missing_model %}
+    <div class="hint">
+        ⚠️ A connection succeeded, but the configured model was not found in the available models list.
+        Make sure the model is pulled on that host.
+    </div>
+    {% endif %}
+
+    {% for d in diagnostics %}
+    <div class="result-card diagnostic-card">
+        <h2>
+            {{ d.name }}
+            {% if d.ok %}
+            <span class="status-badge status-ok">● OK</span>
+            {% else %}
+            <span class="status-badge status-bad">● Failed</span>
+            {% endif %}
+        </h2>
+
+        <p><strong>Host:</strong> {{ d.host }}</p>
+        <p><strong>Configured model:</strong> {{ d.model }}</p>
+
+        {% if d.version %}
+        <p><strong>Ollama version:</strong> {{ d.version }}</p>
+        {% endif %}
+
+        {% if d.model_found %}
+        <p><span class="status-badge status-ok">Model found</span></p>
+        {% elif d.ok %}
+        <p><span class="status-badge status-bad">Model NOT found</span></p>
+        {% endif %}
+
+        {% if d.error %}
+        <div class="error-banner" style="margin-top: 12px;">
+            {{ d.error }}
+        </div>
+        {% endif %}
+
+        {% if d.available_models %}
+        <p style="margin-top: 12px; color: var(--muted); font-size: 0.9rem;">Available models:</p>
+        <ul class="model-list">
+            {% for m in d.available_models %}
+            <!-- target class applied to exact match or same family (e.g. model:latest) -->
+            <li{% if d.model == m %} class="target"{% endif %}>{{ m }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <a href="{% url 'index' %}" class="btn-back">← Back to home</a>
+</div>
+{% endblock %}
