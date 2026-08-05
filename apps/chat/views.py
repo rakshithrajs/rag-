@@ -1,19 +1,20 @@
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.chat.models import Conversation, Message
 
 
-def conversation_list(request):
+def conversation_list(request: HttpRequest) -> HttpResponse:
     conversations = Conversation.objects.all()
     return render(request, "chat/conversation_list.html", {"conversations": conversations})
 
 
-def conversation_detail(request, pk):
+def conversation_detail(request: HttpRequest, pk: int) -> HttpResponse:
     conversation = get_object_or_404(Conversation, pk=pk)
     return render(request, "chat/conversation_detail.html", {"conversation": conversation})
 
 
-def new_conversation(request):
+def new_conversation(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         title = request.POST.get("title", "")
         conversation = Conversation.objects.create(title=title)
@@ -26,7 +27,7 @@ def new_conversation(request):
     return render(request, "chat/new_conversation.html")
 
 
-def ask(request, pk):
+def ask(request: HttpRequest, pk: int) -> HttpResponse:
     conversation = get_object_or_404(Conversation, pk=pk)
     if request.method == "POST":
         question = request.POST.get("question", "")

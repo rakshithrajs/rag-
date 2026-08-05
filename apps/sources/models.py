@@ -4,6 +4,8 @@ from apps.core.models import TimeStampedModel
 
 
 class KnowledgeSource(TimeStampedModel):
+    """An external knowledge source indexed for retrieval."""
+
     SOURCE_TYPE_PDF = "pdf"
     SOURCE_TYPE_TXT = "txt"
     SOURCE_TYPE_URL = "url"
@@ -34,5 +36,5 @@ class KnowledgeSource(TimeStampedModel):
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.title

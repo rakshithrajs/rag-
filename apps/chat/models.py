@@ -1,20 +1,23 @@
 from django.db import models
 
 from apps.core.models import TimeStampedModel
-from apps.sources.models import KnowledgeSource
 
 
 class Conversation(TimeStampedModel):
+    """A sequence of messages about one or more knowledge sources."""
+
     title = models.CharField(max_length=255, blank=True)
 
     class Meta:
         ordering = ["-updated_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.title or f"Conversation {self.id}"
 
 
 class Message(TimeStampedModel):
+    """A single turn in a conversation."""
+
     ROLE_USER = "user"
     ROLE_ASSISTANT = "assistant"
     ROLES = [
@@ -32,5 +35,5 @@ class Message(TimeStampedModel):
     class Meta:
         ordering = ["created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.role}: {self.content[:50]}"
