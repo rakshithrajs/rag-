@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse
 
+import chardet
 import requests
 from bs4 import BeautifulSoup
 from pypdf import PdfReader
@@ -99,6 +100,21 @@ def _clean_url(url: str) -> str:
     return url
 
 
+def _decode_html(response: requests.Response) -> str:
+    """Decode response bytes to text using explicit encoding fallbacks."""
+    content_type = response.headers.get("Content-Type", "").lower()
+    if "charset" in content_type:
+        encoding = content_type.split("charset=")[-1].split(";")[0].strip('"')
+    else:
+        detected = chardet.detect(response.content)
+        encoding = detected.get("encoding") or "utf-8"
+
+    try:
+        return response.content.decode(encoding, errors="replace")
+    except (LookupError, UnicodeDecodeError):
+        return response.content.decode("utf-8", errors="replace")
+
+
 def extract_url(url: str) -> str:
     """Fetch a public webpage and extract its main text content."""
     cleaned_url = _clean_url(url)
@@ -128,12 +144,25 @@ def extract_url(url: str) -> str:
     if len(response.content) > MAX_URL_SIZE_BYTES:
         raise ExtractionError("URL response is too large")
 
-    soup = BeautifulSoup(response.text, "html.parser")
+    content_type = response.headers.get("Content-Type", "").lower()
+    if "text/html" not in content_type and "application/xhtml" not in content_type:
+        if "application/pdf" in content_type:
+            raise ExtractionError("URL returned a PDF. Please upload PDFs as a file instead.")
+        logger.warning(
+            "URL %s returned Content-Type %s; attempting HTML extraction anyway",
+            cleaned_url,
+            content_type,
+        )
+
+    html = _decode_html(response)
+    soup = BeautifulSoup(html, "html.parser")
     for element in soup(["script", "style", "nav", "footer", "header"]):
         element.decompose()
 
     text = soup.get_text(separator="\n")
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    if not text:
+        raise ExtractionError("No readable text found at the provided URL")
     return text
 
 

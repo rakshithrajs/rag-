@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
+from apps.core import chroma
 from apps.sources.models import KnowledgeSource
 from apps.sources.serializers import KnowledgeSourceSerializer
 from apps.sources.tasks import process_source
@@ -23,6 +24,11 @@ class KnowledgeSourceViewSet(ModelViewSet):
     def perform_create(self, serializer: KnowledgeSourceSerializer) -> None:
         source = serializer.save()
         process_source.enqueue(source.id)
+
+    def perform_destroy(self, instance: KnowledgeSource) -> None:
+        source_id = instance.id
+        super().perform_destroy(instance)
+        chroma.delete_source(source_id)
 
 
 @api_view(["POST"])

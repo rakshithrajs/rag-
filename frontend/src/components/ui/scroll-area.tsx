@@ -1,23 +1,28 @@
 "use client"
 
+import { useRef } from "react"
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 
 import { cn } from "@/lib/utils"
 
-function ScrollArea({
-  className,
-  children,
-  ...props
-}: ScrollAreaPrimitive.Root.Props) {
+interface ScrollAreaProps extends ScrollAreaPrimitive.Root.Props {
+  viewportRef?: React.RefObject<HTMLDivElement | null>
+}
+
+function ScrollArea({ className, children, viewportRef, ...props }: ScrollAreaProps) {
+  const localViewportRef = useRef<HTMLDivElement>(null)
+  const effectiveViewportRef = viewportRef || localViewportRef
+
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
-      className={cn("relative", className)}
+      className={cn("relative flex flex-col overflow-hidden", className)}
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
+        ref={effectiveViewportRef}
         data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+        className="size-full flex-1 scroll-smooth rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

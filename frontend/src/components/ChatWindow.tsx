@@ -15,11 +15,12 @@ interface ChatWindowProps {
 
 export function ChatWindow({ conversation, onAsk, asking }: ChatWindowProps) {
   const [question, setQuestion] = useState('')
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const viewportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    const viewport = viewportRef.current
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight
     }
   }, [conversation?.messages, asking])
 
@@ -53,7 +54,7 @@ export function ChatWindow({ conversation, onAsk, asking }: ChatWindowProps) {
 
   return (
     <>
-      <div className="border-b border-border px-4 py-3">
+      <div className="shrink-0 border-b border-border px-4 py-3">
         <h1 className="font-semibold text-foreground">
           {conversation.title || `Conversation ${conversation.id}`}
         </h1>
@@ -62,8 +63,8 @@ export function ChatWindow({ conversation, onAsk, asking }: ChatWindowProps) {
         </p>
       </div>
 
-      <ScrollArea className="flex-1 px-4 py-4" ref={scrollRef}>
-        <div className="flex min-h-0 flex-col gap-6">
+      <ScrollArea className="min-h-0 flex-1 px-4 py-4" viewportRef={viewportRef}>
+        <div className="flex flex-col gap-6">
           {conversation.messages.map((message, idx) => (
             <MessageBubble key={`${message.id}-${idx}`} message={message} />
           ))}
@@ -83,7 +84,7 @@ export function ChatWindow({ conversation, onAsk, asking }: ChatWindowProps) {
 
       <form
         onSubmit={handleSubmit}
-        className="flex items-end gap-2 border-t border-border bg-card p-3"
+        className="shrink-0 flex items-end gap-2 border-t border-border bg-card p-3"
       >
         <Textarea
           value={question}

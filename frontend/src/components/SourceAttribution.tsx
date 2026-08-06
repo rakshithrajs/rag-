@@ -30,14 +30,14 @@ export function SourceAttribution({ chunks }: SourceAttributionProps) {
         {chunks.length} source{chunks.length === 1 ? '' : 's'} used
       </Button>
       {open && (
-        <ScrollArea className="mt-2 max-h-[40vh] pr-2">
+        <ScrollArea className="mt-2 max-h-[min(30vh,240px)] w-full pr-2">
           <div className="flex flex-col gap-2">
             {chunks.map((chunk, idx) => (
               <Card key={idx} className="border-l-4 border-l-primary">
                 <CardContent className="space-y-1 p-2">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
                     <span className="text-muted-foreground">{typeIcons[chunk.source_type] || <FileText className="size-3.5" />}</span>
-                    {chunk.source}
+                    <span className="truncate">{chunk.source}</span>
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-3">{chunk.text}</p>
                 </CardContent>
