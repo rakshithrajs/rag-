@@ -51,6 +51,11 @@ def retrieve_chunks(question: str) -> list[dict[str, Any]]:
     if not embeddings:
         return []
 
+    # The ingestion worker is a separate process; its new writes are not
+    # visible to this process's cached HNSW index. Drop the cache so the
+    # retrieval below reads fresh state from disk.
+    chroma.reset_client_cache()
+
     source_ids = chroma.list_ready_source_ids()
     if not source_ids:
         return []

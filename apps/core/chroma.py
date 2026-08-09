@@ -6,6 +6,7 @@ from typing import Any
 
 import chromadb
 from chromadb.api.models.Collection import Collection
+from chromadb.api.shared_system_client import SharedSystemClient
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,22 @@ def _get_collection() -> Collection:
     """Return the shared knowledge collection."""
     client = _get_client()
     return client.get_or_create_collection(name=_COLLECTION_NAME)
+
+
+def reset_client_cache() -> None:
+    """Drop this process's in-memory ChromaDB system cache.
+
+    ChromaDB caches the loaded HNSW index per process (``SharedSystemClient``,
+    keyed by the DB path). When a separate process -- the background task
+    worker that ingests sources -- writes new vectors, this process's cached
+    index goes stale and subsequent ``query`` calls fail with internal errors
+    such as "Error finding id". Clearing the cache forces the next client to
+    reload fresh state from disk.
+
+    Call on the read path before retrieving chunks. It is a no-op in the
+    worker process, which writes but does not query.
+    """
+    SharedSystemClient.clear_system_cache()
 
 
 def add_chunks(
