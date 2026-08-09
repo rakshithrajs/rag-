@@ -1,6 +1,7 @@
 import { Bot, User } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Message } from '@/lib/types'
+import { MarkdownContent } from './MarkdownContent'
 import { SourceAttribution } from './SourceAttribution'
 
 interface MessageBubbleProps {
@@ -26,7 +27,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       <div className={`flex min-w-0 max-w-[80%] flex-1 flex-col gap-2 ${isUser ? 'items-end' : 'items-start'}`}>
         <Card className={isUser ? 'bg-primary text-primary-foreground' : 'bg-card'}>
           <CardContent className="p-3">
-            <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+            {isUser ? (
+              <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+            ) : (
+              <MarkdownContent content={message.content} />
+            )}
           </CardContent>
         </Card>
         {!isUser && message.source_chunks && (

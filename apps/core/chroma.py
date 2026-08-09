@@ -105,8 +105,40 @@ def list_ready_source_ids() -> list[int]:
     return sorted(ids)
 
 
+def _reset_collection() -> None:
+    """Drop and recreate the knowledge collection to rebuild the HNSW index.
+
+    Used when the collection becomes empty: dropping the collection and
+    letting it be recreated sheds any residual index fragmentation or
+    inconsistency left by prior deletes, rather than accumulating it.
+    """
+    client = _get_client()
+    client.delete_collection(name=_COLLECTION_NAME)
+    client.get_or_create_collection(name=_COLLECTION_NAME)
+    logger.info("Reset knowledge collection (fresh HNSW index)")
+
+
 def delete_source(source_id: int) -> None:
-    """Remove all chunks belonging to a knowledge source."""
+    """Remove all chunks belonging to a knowledge source.
+
+    Deletes by explicit chunk IDs rather than a ``where`` metadata filter.
+    ChromaDB 1.x's ``where``-filter delete does not always reconcile the HNSW
+    graph cleanly, which leaves the vector index inconsistent and makes
+    subsequent ``query`` calls fail with internal errors (e.g.
+    "Error finding id"). Deleting by IDs uses the well-exercised per-vector
+    path. The IDs are first looked up via ``get``, a metadata scan that does
+    not touch the HNSW index.
+
+    If the delete empties the collection, drop and recreate it so the HNSW
+    segment starts fresh. This is a safety net for any residual corruption
+    and only triggers when there is nothing left to lose.
+    """
     collection = _get_collection()
-    collection.delete(where={"source_id": source_id})
-    logger.info("Deleted chunks for source %d", source_id)
+    existing = collection.get(where={"source_id": source_id}, include=[])
+    ids = existing.get("ids") or []
+    if ids:
+        collection.delete(ids=ids)
+    logger.info("Deleted %d chunks for source %d", len(ids), source_id)
+
+    if collection.count() == 0:
+        _reset_collection()
