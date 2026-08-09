@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { Send } from 'lucide-react'
+import { Send, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,9 +11,10 @@ interface ChatWindowProps {
   conversation: Conversation | null
   onAsk: (question: string) => Promise<void>
   asking: boolean
+  hasReadySources: boolean
 }
 
-export function ChatWindow({ conversation, onAsk, asking }: ChatWindowProps) {
+export function ChatWindow({ conversation, onAsk, asking, hasReadySources }: ChatWindowProps) {
   const [question, setQuestion] = useState('')
   const viewportRef = useRef<HTMLDivElement>(null)
 
@@ -82,23 +83,37 @@ export function ChatWindow({ conversation, onAsk, asking }: ChatWindowProps) {
         </div>
       </ScrollArea>
 
-      <form
-        onSubmit={handleSubmit}
-        className="shrink-0 flex items-end gap-2 border-t border-border bg-card p-3"
-      >
-        <Textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask something grounded in your sources..."
-          className="min-h-[60px] flex-1 resize-none"
-          rows={2}
-        />
-        <Button type="submit" disabled={asking || !question.trim()} className="shrink-0">
-          <Send className="mr-1 size-4" />
-          Send
-        </Button>
-      </form>
+      <div className="shrink-0 border-t border-border bg-card p-3">
+        {!hasReadySources && (
+          <div className="mb-2 flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>No ready sources yet. Upload a source and wait for it to finish processing before asking questions.</span>
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="flex items-end gap-2">
+          <Textarea
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              hasReadySources
+                ? 'Ask something grounded in your sources...'
+                : 'Add a ready source first...'
+            }
+            className="min-h-[60px] flex-1 resize-none"
+            rows={2}
+            disabled={!hasReadySources}
+          />
+          <Button
+            type="submit"
+            disabled={asking || !question.trim() || !hasReadySources}
+            className="shrink-0"
+          >
+            <Send className="mr-1 size-4" />
+            Send
+          </Button>
+        </form>
+      </div>
     </>
   )
 }

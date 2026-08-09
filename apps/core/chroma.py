@@ -53,7 +53,7 @@ def add_chunks(
 def query(
     embedding: list[float],
     n_results: int = 5,
-) -> dict[str, Any]:
+) -> Any:
     """Query the knowledge collection by a single embedding vector."""
     collection = _get_collection()
     return collection.query(
@@ -61,6 +61,48 @@ def query(
         n_results=n_results,
         include=["documents", "metadatas", "distances"],
     )
+
+
+def query_by_source(
+    source_id: int,
+    embedding: list[float],
+    n_results: int = 5,
+) -> Any:
+    """Query the collection limited to a single source_id.
+
+    Chroma's KNN panics if n_results exceeds the size of the candidate set
+    for a `where` filter, so we clamp.
+    """
+    collection = _get_collection()
+    available = collection.get(
+        where={"source_id": source_id},
+        include=[],
+    )
+    available_count = len(available.get("ids") or [])
+    if available_count == 0:
+        empty: dict[str, Any] = {"documents": [[]], "metadatas": [[]], "distances": [[]]}
+        return empty
+    effective_n = min(n_results, available_count)
+    return collection.query(
+        query_embeddings=[embedding],
+        n_results=effective_n,
+        where={"source_id": source_id},
+        include=["documents", "metadatas", "distances"],
+    )
+
+
+def list_ready_source_ids() -> list[int]:
+    """Return distinct source_ids that currently have at least one chunk."""
+    collection = _get_collection()
+    data = collection.get(include=["metadatas"])
+    ids: set[int] = set()
+    for md in data.get("metadatas", []) or []:
+        if not md:
+            continue
+        sid = md.get("source_id")
+        if isinstance(sid, int):
+            ids.add(sid)
+    return sorted(ids)
 
 
 def delete_source(source_id: int) -> None:

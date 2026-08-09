@@ -4,12 +4,17 @@ import logging
 from typing import Any
 
 from apps.core import chroma, ollama
+from apps.core.reranker import Reranker
 from apps.chat.models import Conversation, Message
 
 logger = logging.getLogger(__name__)
 
 MAX_HISTORY_MESSAGES = 10
 MAX_RETRIEVED_CHUNKS = 5
+MAX_CHUNK_DISTANCE = 0.85
+PER_SOURCE_RESULTS = 12
+PER_SOURCE_KEEP = 4
+RERANK_TOP_N = 5
 SYSTEM_PROMPT = """You are a grounded knowledge assistant. Answer the user's question using ONLY the retrieved context below. If the context does not contain enough information, clearly say so and do not invent facts. Cite the provided sources implicitly by referring to the context.
 
 Retrieved context:
@@ -18,8 +23,29 @@ Retrieved context:
 Respond in the requested language: {language}"""
 
 
-def retrieve_chunks(question: str, n_results: int = MAX_RETRIEVED_CHUNKS) -> list[dict[str, Any]]:
-    """Embed a question and return the most relevant chunks from ChromaDB."""
+_reranker: Reranker | None = None
+
+
+def _get_reranker() -> Reranker:
+    global _reranker
+    if _reranker is None:
+        _reranker = Reranker()
+    return _reranker
+
+
+def retrieve_chunks(question: str) -> list[dict[str, Any]]:
+    """Return up to RERANK_TOP_N chunks ranked by the cross-encoder reranker.
+
+    Pipeline: per-source top-K -> reranker top-N.
+
+    Note: the reranker is authoritative on the final ordering. The embedding
+    distance is only used to pick the top PER_SOURCE_KEEP from each source;
+    no distance threshold is applied. When two sources cover overlapping
+    vocabulary (e.g. a LangChain scraping guide and a RAG evaluation guide),
+    the reranker can favor the noisier source for ambiguous queries. Removing
+    the noisier source restores the expected answer. Tune the module-level
+    constants below (PER_SOURCE_KEEP, RERANK_TOP_N) to experiment.
+    """
     if not question.strip():
         return []
 
@@ -27,27 +53,43 @@ def retrieve_chunks(question: str, n_results: int = MAX_RETRIEVED_CHUNKS) -> lis
     if not embeddings:
         return []
 
-    results = chroma.query(embedding=embeddings[0], n_results=n_results)
-    documents = results.get("documents") or [[]]
-    metadatas = results.get("metadatas") or [[]]
-    distances = results.get("distances") or [[]]
+    source_ids = chroma.list_ready_source_ids()
+    if not source_ids:
+        return []
 
-    chunks = []
-    for text, metadata, distance in zip(
-        documents[0], metadatas[0], distances[0], strict=False
-    ):
-        chunks.append(
-            {
-                "text": text,
-                "source": metadata.get("title", "Unknown source"),
-                "source_type": metadata.get("source_type", "unknown"),
-                "source_id": metadata.get("source_id"),
-                "chunk_index": metadata.get("chunk_index", 0),
-                "distance": distance,
-            }
-        )
+    per_source: list[dict[str, Any]] = []
+    for sid in source_ids:
+        try:
+            results = chroma.query_by_source(
+                source_id=sid,
+                embedding=embeddings[0],
+                n_results=PER_SOURCE_RESULTS,
+            )
+        except Exception:
+            logger.exception("query_by_source failed for source %s; skipping", sid)
+            continue
+        docs = (results.get("documents") or [[]])[0]
+        metas = (results.get("metadatas") or [[]])[0]
+        dists = (results.get("distances") or [[]])[0]
+        combined = sorted(
+            zip(docs, metas, dists, strict=False), key=lambda t: t[2]
+        )[:PER_SOURCE_KEEP]
+        for text, meta, dist in combined:
+            per_source.append(
+                {
+                    "text": text,
+                    "source": meta.get("title", "Unknown source"),
+                    "source_type": meta.get("source_type", "unknown"),
+                    "source_id": meta.get("source_id"),
+                    "chunk_index": meta.get("chunk_index", 0),
+                    "distance": dist,
+                }
+            )
 
-    return chunks
+    if not per_source:
+        return []
+
+    return _get_reranker().rerank(question, per_source, top_n=RERANK_TOP_N)
 
 
 def format_context(chunks: list[dict[str, Any]]) -> str:
@@ -62,16 +104,21 @@ def format_context(chunks: list[dict[str, Any]]) -> str:
 
 def format_sources(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Format retrieved chunks for storage alongside an assistant message."""
-    return [
-        {
-            "source": chunk["source"],
-            "source_type": chunk["source_type"],
-            "source_id": chunk["source_id"],
-            "chunk_index": chunk["chunk_index"],
-            "text": chunk["text"],
+    out: list[dict[str, Any]] = []
+    for chunk in chunks:
+        if not chunk:
+            continue
+        entry: dict[str, Any] = {
+            "source": chunk.get("source", "Unknown source"),
+            "source_type": chunk.get("source_type", "unknown"),
+            "source_id": chunk.get("source_id"),
+            "chunk_index": chunk.get("chunk_index", 0),
+            "text": chunk.get("text", ""),
         }
-        for chunk in chunks
-    ]
+        if "rerank_score" in chunk:
+            entry["rerank_score"] = chunk["rerank_score"]
+        out.append(entry)
+    return out
 
 
 def build_messages(

@@ -16,7 +16,7 @@ echo "Starting RAG Knowledge Assistant development environment..."
 "$python" "$manage" db_worker &
 worker_pid=$!
 sleep 2
-"$python" "$manage" runserver 0.0.0.0:8000 &
+"$python" "$manage" runserver 0.0.0.0:8000 --noreload &
 server_pid=$!
 
 echo "Backend services started. Worker PID: $worker_pid, Server PID: $server_pid"

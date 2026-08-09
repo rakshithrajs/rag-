@@ -32,12 +32,23 @@ export function UploadSourceDialog({
   const [file, setFile] = useState<File | null>(null)
   const [url, setUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const reset = () => {
     setTitle('')
     setSourceType('txt')
     setFile(null)
     setUrl('')
+    setError(null)
+  }
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      // Clear form state whenever the dialog is dismissed so the next open
+      // doesn't show stale fields or a leftover error message.
+      reset()
+    }
+    onOpenChange(next)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,17 +65,20 @@ export function UploadSourceDialog({
       formData.append('file', file)
     }
     setSubmitting(true)
+    setError(null)
     try {
       await onUpload(formData)
       reset()
       onOpenChange(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload source')
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Knowledge Source</DialogTitle>
@@ -123,11 +137,20 @@ export function UploadSourceDialog({
             </div>
           )}
 
+          {error && (
+            <div
+              role="alert"
+              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {error}
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={submitting}
             >
               Cancel

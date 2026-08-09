@@ -16,6 +16,7 @@ function App() {
   const {
     conversations,
     addConversation,
+    removeConversation,
     refreshConversation,
   } = useConversations()
   const {
@@ -37,6 +38,11 @@ function App() {
     [conversations, selectedId]
   )
 
+  const hasReadySources = useMemo(
+    () => sources.some((s) => s.status === 'ready'),
+    [sources]
+  )
+
   // Poll source statuses while any source is processing.
   useEffect(() => {
     const hasProcessing = sources.some(
@@ -45,7 +51,7 @@ function App() {
     if (!hasProcessing) return
     const id = setInterval(() => {
       void refreshSources()
-    }, 3000)
+    }, 10000)
     return () => clearInterval(id)
   }, [sources, refreshSources])
 
@@ -88,7 +94,7 @@ function App() {
       await addSource(formData)
       toast.success('Source uploaded and queued for processing')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to upload source')
+      throw err instanceof Error ? err : new Error('Failed to upload source')
     }
   }
 
@@ -98,6 +104,18 @@ function App() {
       toast.success('Source removed')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to remove source')
+    }
+  }
+
+  const handleDeleteConversation = async (id: number) => {
+    try {
+      await removeConversation(id)
+      if (selectedId === id) {
+        setSelectedId(undefined)
+      }
+      toast.success('Conversation deleted')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete conversation')
     }
   }
 
@@ -127,6 +145,7 @@ function App() {
         selectedId={selectedId}
         onSelect={setSelectedId}
         onNew={() => setNewConvOpen(true)}
+        onDelete={handleDeleteConversation}
       />
     </>
   )
@@ -138,6 +157,7 @@ function App() {
         <ChatWindow
           conversation={selectedConversation}
           asking={asking}
+          hasReadySources={hasReadySources}
           onAsk={async (question) => {
             if (selectedId) {
               await handleAsk(selectedId, question, language)

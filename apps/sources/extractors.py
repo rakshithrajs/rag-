@@ -1,13 +1,12 @@
 """Extract plain text from PDF, TXT, and URL sources."""
 
-import ipaddress
 import logging
 import re
 from pathlib import Path
 from urllib.parse import urlparse
 
-import chardet
 import requests
+import trafilatura
 from bs4 import BeautifulSoup
 from pypdf import PdfReader
 
@@ -15,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024
-MAX_URL_SIZE_BYTES = 10 * 1024 * 1024
 REQUEST_TIMEOUT_SECONDS = 30
 
 _BROWSER_HEADERS = {
@@ -24,18 +22,8 @@ _BROWSER_HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/126.0.0.0 Safari/537.36"
     ),
-    "Accept": (
-        "text/html,application/xhtml+xml,application/xml;"
-        "q=0.9,image/avif,image/webp,*/*;q=0.8"
-    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
 }
 
 
@@ -71,48 +59,12 @@ def extract_txt(file_path: Path) -> str:
         raise ExtractionError(f"Could not read text file: {exc}") from exc
 
 
-def _is_private_url(url: str) -> bool:
-    """Return True if the URL points to a private or reserved network."""
-    parsed = urlparse(url)
-    hostname = parsed.hostname
-    if not hostname:
-        return True
-
-    if hostname in ("localhost", "127.0.0.1", "::1"):
-        return True
-
-    try:
-        ip = ipaddress.ip_address(hostname)
-        return ip.is_private or ip.is_reserved or ip.is_loopback
-    except ValueError:
-        pass
-
-    return False
-
-
 def _clean_url(url: str) -> str:
     """Validate scheme and reject obviously malicious URLs."""
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise ExtractionError("Only HTTP and HTTPS URLs are allowed")
-    if _is_private_url(url):
-        raise ExtractionError("URL resolves to a private or internal address")
     return url
-
-
-def _decode_html(response: requests.Response) -> str:
-    """Decode response bytes to text using explicit encoding fallbacks."""
-    content_type = response.headers.get("Content-Type", "").lower()
-    if "charset" in content_type:
-        encoding = content_type.split("charset=")[-1].split(";")[0].strip('"')
-    else:
-        detected = chardet.detect(response.content)
-        encoding = detected.get("encoding") or "utf-8"
-
-    try:
-        return response.content.decode(encoding, errors="replace")
-    except (LookupError, UnicodeDecodeError):
-        return response.content.decode("utf-8", errors="replace")
 
 
 def extract_url(url: str) -> str:
@@ -126,7 +78,6 @@ def extract_url(url: str) -> str:
             allow_redirects=True,
             headers=_BROWSER_HEADERS,
         )
-        response.raise_for_status()
     except requests.exceptions.TooManyRedirects as exc:
         logger.error("Too many redirects fetching %s", cleaned_url)
         raise ExtractionError("URL redirected too many times") from exc
@@ -137,36 +88,63 @@ def extract_url(url: str) -> str:
         logger.error("Failed to fetch URL %s: %s", cleaned_url, exc)
         raise ExtractionError(f"Could not fetch URL: {exc}") from exc
 
-    content_length = response.headers.get("Content-Length")
-    if content_length and int(content_length) > MAX_URL_SIZE_BYTES:
-        raise ExtractionError("URL response is too large")
+    if response.status_code in (401, 403, 429):
+        logger.warning(
+            "URL %s returned %s; site likely blocks automated access",
+            cleaned_url,
+            response.status_code,
+        )
+        raise ExtractionError(
+            "This website blocks automated access. "
+            "Please provide another URL or upload the content directly."
+        )
 
-    if len(response.content) > MAX_URL_SIZE_BYTES:
-        raise ExtractionError("URL response is too large")
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        logger.error(
+            "URL %s returned HTTP %s", cleaned_url, response.status_code
+        )
+        raise ExtractionError(
+            f"Could not fetch URL: HTTP {response.status_code}"
+        ) from exc
 
     content_type = response.headers.get("Content-Type", "").lower()
     if "text/html" not in content_type and "application/xhtml" not in content_type:
         if "application/pdf" in content_type:
-            raise ExtractionError("URL returned a PDF. Please upload PDFs as a file instead.")
+            raise ExtractionError(
+                "URL returned a PDF. Please upload PDFs as a file instead."
+            )
         logger.warning(
             "URL %s returned Content-Type %s; attempting HTML extraction anyway",
             cleaned_url,
             content_type,
         )
 
-    html = _decode_html(response)
-    soup = BeautifulSoup(html, "html.parser")
-    for element in soup(["script", "style", "nav", "footer", "header"]):
-        element.decompose()
+    html = response.text
 
-    text = soup.get_text(separator="\n")
+    text = trafilatura.extract(
+        html,
+        include_comments=False,
+        include_tables=False,
+        favor_precision=True,
+    ) or ""
+
+    if not text:
+        soup = BeautifulSoup(html, "html.parser")
+        for element in soup(["script", "style", "nav", "footer", "header", "aside"]):
+            element.decompose()
+        text = soup.get_text(separator="\n")
+
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
     if not text:
         raise ExtractionError("No readable text found at the provided URL")
     return text
 
 
-def extract(source_type: str, file_path: Path | None = None, url: str | None = None) -> str:
+def extract(
+    source_type: str, file_path: Path | None = None, url: str | None = None
+) -> str:
     """Dispatch extraction based on source type."""
     if source_type == "pdf":
         if not file_path:

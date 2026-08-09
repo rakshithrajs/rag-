@@ -78,6 +78,10 @@ export async function getConversation(id: number): Promise<Conversation> {
   return data
 }
 
+export async function deleteConversation(id: number): Promise<void> {
+  await api.delete(`/chat/conversations/${id}/`)
+}
+
 export async function askQuestion(
   conversationId: number,
   payload: AskRequest

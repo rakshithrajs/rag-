@@ -57,6 +57,14 @@ export function SourceList({ sources, onUpload, onReprocess, onDelete }: SourceL
                       )}
                       {source.status_display}
                     </Badge>
+                    {source.status === 'error' && source.metadata?.error && (
+                      <p
+                        className="mt-1 truncate text-xs text-destructive"
+                        title={String(source.metadata.error)}
+                      >
+                        {String(source.metadata.error)}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1">

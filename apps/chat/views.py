@@ -31,13 +31,17 @@ def conversation_list_create(request: Request) -> Response:
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@api_view(["GET"])
+@api_view(["GET", "DELETE"])
 def conversation_detail(request: Request, pk: int) -> Response:
-    """Retrieve a single conversation with messages."""
+    """Retrieve or delete a single conversation."""
     try:
         conversation = Conversation.objects.prefetch_related("messages").get(pk=pk)
     except Conversation.DoesNotExist:
         return Response({"detail": "Conversation not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "DELETE":
+        conversation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     serializer = ConversationSerializer(conversation)
     return Response(serializer.data)

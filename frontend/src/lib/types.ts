@@ -18,6 +18,7 @@ export interface SourceChunk {
   source_id?: number
   chunk_index: number
   text: string
+  rerank_score?: number
 }
 
 export interface Message {

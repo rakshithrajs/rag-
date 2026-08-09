@@ -29,7 +29,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             <p className="whitespace-pre-wrap text-sm">{message.content}</p>
           </CardContent>
         </Card>
-        {!isUser && message.source_chunks && message.source_chunks.length > 0 && (
+        {!isUser && message.source_chunks && (
           <SourceAttribution chunks={message.source_chunks} />
         )}
       </div>

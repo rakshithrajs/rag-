@@ -25,9 +25,12 @@ def _auth_headers() -> dict[str, str]:
 
 def _embedding_client() -> OllamaEmbeddings:
     """Return a configured OllamaEmbeddings instance."""
+    # Use a dedicated embedding endpoint if configured; otherwise fall back to the
+    # main Ollama host (which may be cloud or local depending on settings).
+    base_url = getattr(settings, "OLLAMA_EMBED_HOST", settings.OLLAMA_HOST).rstrip("/")
     return OllamaEmbeddings(
         model=settings.OLLAMA_EMBED_MODEL,
-        base_url=settings.OLLAMA_EMBED_HOST.rstrip("/"),
+        base_url=base_url,
         client_kwargs={"headers": _auth_headers()},
     )
 

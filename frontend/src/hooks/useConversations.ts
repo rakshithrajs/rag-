@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { createConversation, getConversation, listConversations } from '@/lib/api'
+import {
+  createConversation,
+  deleteConversation,
+  getConversation,
+  listConversations,
+} from '@/lib/api'
 import type { Conversation, CreateConversationRequest } from '@/lib/types'
 
 export function useConversations() {
@@ -31,6 +36,11 @@ export function useConversations() {
     []
   )
 
+  const removeConversation = useCallback(async (id: number) => {
+    await deleteConversation(id)
+    setConversations((prev) => prev.filter((c) => c.id !== id))
+  }, [])
+
   const refreshConversation = useCallback(async (id: number) => {
     const conversation = await getConversation(id)
     setConversations((prev) =>
@@ -49,6 +59,7 @@ export function useConversations() {
     error,
     refresh: fetchConversations,
     addConversation,
+    removeConversation,
     refreshConversation,
   }
 }
