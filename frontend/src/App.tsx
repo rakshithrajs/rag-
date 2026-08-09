@@ -6,7 +6,6 @@ import { SourceList } from '@/components/SourceList'
 import { ChatWindow } from '@/components/ChatWindow'
 import { UploadSourceDialog } from '@/components/UploadSourceDialog'
 import { NewConversationDialog } from '@/components/NewConversationDialog'
-import { LanguageSelect } from '@/components/LanguageSelect'
 import { askQuestion } from '@/lib/api'
 import { useConversations } from '@/hooks/useConversations'
 import { useSources } from '@/hooks/useSources'
@@ -28,7 +27,6 @@ function App() {
   } = useSources()
 
   const [selectedId, setSelectedId] = useState<number | undefined>(undefined)
-  const [language, setLanguage] = useState('English')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [newConvOpen, setNewConvOpen] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -63,24 +61,17 @@ function App() {
       const conversation = await addConversation({ title })
       setSelectedId(conversation.id)
       if (initialQuestion) {
-        await handleAsk(conversation.id, initialQuestion, language)
+        await handleAsk(conversation.id, initialQuestion)
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create conversation')
     }
   }
 
-  const handleAsk = async (
-    conversationId: number,
-    question: string,
-    outputLanguage: string
-  ) => {
+  const handleAsk = async (conversationId: number, question: string) => {
     setAsking(true)
     try {
-      await askQuestion(conversationId, {
-        question,
-        output_language: outputLanguage,
-      })
+      await askQuestion(conversationId, { question })
       await refreshConversation(conversationId)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to get answer')
@@ -130,9 +121,8 @@ function App() {
 
   const sidebar = (
     <>
-      <div className="flex items-center justify-between border-b border-border p-4">
+      <div className="border-b border-border p-4">
         <span className="font-semibold">Knowledge Assistant</span>
-        <LanguageSelect value={language} onChange={setLanguage} />
       </div>
       <SourceList
         sources={sources}
@@ -160,7 +150,7 @@ function App() {
           hasReadySources={hasReadySources}
           onAsk={async (question) => {
             if (selectedId) {
-              await handleAsk(selectedId, question, language)
+              await handleAsk(selectedId, question)
             }
           }}
         />

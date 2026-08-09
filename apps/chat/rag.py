@@ -18,9 +18,7 @@ RERANK_TOP_N = 5
 SYSTEM_PROMPT = """You are a grounded knowledge assistant. Answer the user's question using ONLY the retrieved context below. If the context does not contain enough information, clearly say so and do not invent facts. Cite the provided sources implicitly by referring to the context.
 
 Retrieved context:
-{context}
-
-Respond in the requested language: {language}"""
+{context}"""
 
 
 _reranker: Reranker | None = None
@@ -125,7 +123,6 @@ def build_messages(
     question: str,
     chunks: list[dict[str, Any]],
     history: list[Message],
-    language: str,
 ) -> list[dict[str, str]]:
     """Build the message list for the chat model."""
     messages: list[dict[str, str]] = []
@@ -134,7 +131,7 @@ def build_messages(
     messages.append(
         {
             "role": "system",
-            "content": SYSTEM_PROMPT.format(context=context, language=language),
+            "content": SYSTEM_PROMPT.format(context=context),
         }
     )
 
@@ -151,11 +148,10 @@ def build_messages(
 def generate_answer(
     conversation: Conversation,
     question: str,
-    language: str = "English",
 ) -> tuple[str, list[dict[str, Any]]]:
     """Retrieve context and generate an answer for a question."""
     chunks = retrieve_chunks(question)
-    messages = build_messages(question, chunks, list(conversation.messages.all()), language)
+    messages = build_messages(question, chunks, list(conversation.messages.all()))
 
     try:
         answer = ollama.get_chat_response(messages)

@@ -45,5 +45,4 @@ export interface CreateConversationRequest {
 
 export interface AskRequest {
   question: string
-  output_language?: string
 }

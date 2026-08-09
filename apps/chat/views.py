@@ -59,13 +59,11 @@ def ask(request: Request, pk: int) -> Response:
     if not question.strip():
         return Response({"detail": "Question is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    language = request.data.get("output_language", "English")
-
     Message.objects.create(
         conversation=conversation, role=Message.ROLE_USER, content=question
     )
 
-    answer, source_chunks = generate_answer(conversation, question, language)
+    answer, source_chunks = generate_answer(conversation, question)
 
     assistant_message = Message.objects.create(
         conversation=conversation,
